@@ -1,0 +1,962 @@
+//Imports all necessary componets, variabales, etc. 
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import React, {useEffect, useState, useMemo, Component} from 'react'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Moment, View, Text, StyleSheet, Constants, Vibration, Animated, Platform, Modal, Button, TextInput, TouchableOpacity, SafeAreaView, Image, ImageBackground, Dimensions, Switch, Alert, ViewPagerAndroidComponent, Systrace, ScrollView, Touchable, FlatList, LogBox, Linking} from 'react-native';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import * as ImagePicker from 'expo-image-picker';
+import { useRoute } from "@react-navigation/native" 
+
+//Method for my home screen
+function HomeScreen({ navigation }) { 
+
+  const storeData = async (value) => {
+  try {
+    const jsonValue = JSON.stringify([{name: 'Name', relationship: 'Relationship', image: '', key: '1'}]);
+    await AsyncStorage.setItem('my-key', jsonValue);
+  } catch (e) {
+    // saving error
+  }
+  }
+  
+  useEffect(() => {
+    storeData()
+  }, []);
+
+  return (
+    //View for the screen (container)
+    <View style={styles.container}>
+      <View style={styles.topHalf}>
+        <Text style = {styles.title}>  Cognitive Stimulation
+        </Text>
+        <Text style = {styles.titleText}>  Aid for Dementia 
+        </Text>
+      </View>
+
+      <View style={styles.middle}>
+        <TouchableOpacity style = {styles.button} onPress = {() => navigation.navigate('Flashcards')}>
+          <Text style = {styles.buttonText}>Flashcards</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.separate}>
+      </View>
+
+      <View style={styles.bottom}>
+        <TouchableOpacity style = {styles.button2} onPress = {() => navigation.navigate('MathGame')}>
+          <Text style = {styles.buttonText}>Math Game
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style = {styles.button2} onPress = {() => navigation.navigate('Treatment')}>
+          <Text style = {styles.buttonText}>Treatment News
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function CustomFlashcards({ navigation }) {
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalVisible2, setModalVisible2] = useState(false);
+  const [name, setName] = useState('');
+  const [relationship, setRelationship] = useState('');
+  const [flashcards, setFlashcards] = useState([]);
+  const [image, setImage] = useState(null);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  const [currentFlashcard, setCurrentFlashcard] = useState({name: '', relationship: '', image: '', key: ''});
+
+  const storeData = async (value) => {
+  try {
+    const jsonValue = JSON.stringify(value);
+    await AsyncStorage.setItem('my-key', jsonValue);
+  } catch (e) {
+    // saving error
+  }
+  };
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    console.log(result);
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  }
+
+  const getData = async () => {
+  try {
+    const jsonValue = await AsyncStorage.getItem('my-key');
+    const arrayData = JSON.parse(jsonValue);
+    setFlashcards(arrayData)
+  } catch (e) {
+    // error reading value
+  }
+  }
+
+  function storage() {
+
+    var temp = flashcards
+    temp.push({name: name, relationship: relationship, image: image, key:'2'})
+    setModalVisible(false);
+    //setFlashcards(oldArray => [...oldArray, {name: name, relationship: relationship, image: image, key:'2'}]);
+    storeData(temp)
+    setName('')
+    setRelationship('')
+  }
+
+  function screenStart(){
+    setModalVisible2(true);
+    const length = flashcards.length - 1 
+    const random = Math.floor(Math.random()*(length) + 1);
+    setCurrentFlashcard(flashcards[random]) 
+  }
+
+  function nextCard() {
+    setShowAnswer(false);
+    const length = flashcards.length - 1
+    const random = Math.floor(Math.random()*(length) + 1);
+    setCurrentFlashcard(flashcards[random])
+  }
+
+  function deleteFlashcard(item) {
+    //setFlashcards(oldValues => {
+      //return oldValues.filter(card => card !== item)
+    //})
+    //var temp = flashcards
+    var temp = flashcards.filter(card => card !== item)
+    setFlashcards(temp)
+    storeData(temp)
+  }
+
+  useEffect(() => {
+    getData()
+  }, []);
+
+  useMemo(() => {
+  storeData();
+}, [flashcards]);
+
+  return (
+
+    <View style={styles.container}>
+
+    <View style = {styles.flashcardsTop}>
+
+    <TouchableOpacity style = {styles.addButton} onPress = {() => {setModalVisible(true); setImage(null); }}>
+    
+      <Text style = {styles.addButtonText}>Add Flashcard</Text>
+
+    </TouchableOpacity> 
+
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.'); 
+          setModalVisible(!modalVisible);
+        }}>
+
+        <View style={styles.container}>
+          <View style={styles.popUp}>
+
+                <TouchableOpacity style = {styles.closeButton} onPress={() => {storage()}}>
+
+                 <Text style = {styles.closeButtonText}>Create Flashcard</Text>
+                </TouchableOpacity>
+            
+            <Image
+              source={{ uri: image }}
+              style = {{height: 250, width: 250, borderRadius: 10, borderWidth: 2, borderColor: "black" , backgroundColor: 'whitesmoke'}}
+            /> 
+
+             <TouchableOpacity style = {styles.imageButton} onPress={() => {pickImage()}}>
+              <Text style = {styles.imageButtonText}> Select Image </Text>
+            </TouchableOpacity>
+          
+          <TextInput
+            style={{height: 30, fontSize: 20, marginTop: 10}}
+            placeholder="Type here to enter name!"
+            onChangeText={newName => setName(newName)}
+          />
+
+          <TextInput
+            style={{height: 30, fontSize: 20, marginBottom: 10}}
+            placeholder="Type here to enter relationship status!"
+            onChangeText={newRelationship => setRelationship(newRelationship)}
+          />
+
+          <TouchableOpacity style = {styles.cancelButton} onPress={() => setModalVisible(false)}>
+
+          <Text style = {styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+  
+          </View>
+        </View>
+      </Modal>
+
+      </View>
+
+      <View style = {styles.flashcardsBottom}>
+      
+        <FlatList 
+          keyExtractor={(item) => item.key}
+          data = {flashcards}
+          renderItem = {({item}) => (
+
+          <View style={styles.flashcardBlock}>
+
+          <View style={styles.flashcardBlockLeft}>
+
+            <Text style = {styles.nameText}>{item.name}</Text> 
+            <Text style = {styles.relationshipText}>{item.relationship}</Text> 
+
+            <TouchableOpacity style = {styles.save} onPress = {() => deleteFlashcard(item)}>
+
+            <Text style = {styles.saveText}>Delete</Text>
+
+            </TouchableOpacity>
+
+          </View>
+
+          <View style={styles.flashcardBlockRight}>
+          
+            <Image
+              source= {{ uri: item.image }}
+              style = {{height: 120, width: 120, borderRadius: 10, borderWidth: 2, borderColor: "black", backgroundColor: 'white'}}
+            />
+
+          </View>
+          </View> 
+
+        )}
+        />
+      
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible2}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.');
+          setModalVisible2(!modalVisible2);
+        }}>
+
+        {showAnswer ?         
+        
+        <View style={styles.container}>
+
+        <View style = {styles.displayFlashcard}>
+
+        <View style={styles.flashcardPracticeImage}>
+
+        <Image
+          source= {{ uri: currentFlashcard.image }}
+          style = {{height: 370, width: 300, borderRadius: 10, borderWidth: 2.3, borderColor: "black", backgroundColor: 'white'}}
+        />
+
+        </View>
+
+        <View style={styles.flashcardPracticeButtons}>
+
+        <TouchableOpacity style = {styles.exitButton} onPress={() => setModalVisible2(false)}>
+
+          <Text style = {styles.exitButtonText}>Exit</Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity style = {styles.flipButton} onPress={() => navigation.navigate('Practice')}>
+
+          <Text style = {styles.flipButtonText2}>{currentFlashcard.name}</Text> 
+          <Text style = {styles.flipButtonText3}>{currentFlashcard.relationship}</Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity style = {styles.nextCard} onPress={() => nextCard()}>
+
+          <Text style = {styles.nextCardText}>Next</Text>
+
+        </TouchableOpacity>
+
+        </View>
+
+        </View>
+          
+        </View> 
+        
+        :         
+        
+        <View style={styles.container}>
+
+        <View style = {styles.displayFlashcard}>
+
+        <View style={styles.flashcardPracticeImage}>
+
+        <Image
+          source= {{ uri: currentFlashcard.image }}
+          style = {{height: 370, width: 300, borderRadius: 10, borderWidth: 2.3, borderColor: "black", backgroundColor: 'white'}}
+        />
+
+        </View>
+
+        <View style={styles.flashcardPracticeButtons}>
+
+        <TouchableOpacity style = {styles.exitButton} onPress={() => setModalVisible2(false)}>
+
+          <Text style = {styles.exitButtonText}>Exit</Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity style = {styles.flipButton} onPress={() => setShowAnswer(true)}>
+
+          <Text style = {styles.flipButtonText}>Reveal Answer</Text>
+
+        </TouchableOpacity>
+
+        <TouchableOpacity style = {styles.nextCard} onPress={() => nextCard()}>
+
+          <Text style = {styles.nextCardText}>Next</Text>
+
+        </TouchableOpacity>
+
+
+        </View>
+
+    </View>
+          
+        </View> 
+        
+        }
+
+      </Modal>
+
+      </View>
+
+        <View style = {styles.flashcardBottomView}>
+
+          <TouchableOpacity style = {styles.flashcardPraticeScreen} onPress={() => screenStart()}>
+
+            <Text style = {styles.flashcardPraticeScreenText}>Flashcard Practice</Text>
+
+          </TouchableOpacity>
+
+        </View>
+
+    </View>
+  
+  );
+}
+
+//Method for the flashcard screen
+function FlashcardsPractice({ navigation }) {
+
+  const [flashcards, setFlashcards] = useState([
+  ]);
+
+  const getData = async () => {
+  try {
+    const jsonValue = await AsyncStorage.getItem('my-key');
+    const arrayData = JSON.parse(jsonValue);
+    setFlashcards(arrayData)
+  } catch (e) {
+    // error reading value
+  }
+  }
+
+    useEffect(() => {
+    getData()
+    const length = flashcards.length
+    const random = Math.floor(Math.random() * length)
+
+    setCurrentFlashcard(flashcards[0])
+
+  }, []);
+
+  const [currentFlashcard, setCurrentFlashcard] = useState({name: 'lance', relationship: '', image: '', key: ''});
+
+  return (
+    <View style={styles.container}> 
+
+
+    </View>
+  );
+}
+
+//Method for the dementia news screen
+function MathGame({ navigation }) {
+
+  useEffect(() => {
+    const random = Math.floor(Math.random()*(12));
+    const random2 = Math.floor(Math.random()*(12));
+    setNumber1(random)
+    setNumber2(random2)
+  }, []);
+
+  const [mode, setMode] = useState('x');
+
+  function checkProduct() {
+
+    if (mode == 'x') {
+
+      if (userAnswer == number1*number2) {
+        Alert.alert('Correct!')
+        generateNewMultiply()
+      }
+      else {
+        Alert.alert('Incorrect! Try again.')
+      }
+    }
+
+    if (mode == '+') {
+
+      if (userAnswer == number1+number2) {
+        Alert.alert('Correct!')
+        generateNewSum()
+      }
+      else {
+        Alert.alert('Incorrect! Try again.')
+      }
+    }
+
+    if (mode == '-') {
+
+      if (userAnswer == number1-number2) {
+        Alert.alert('Correct!')
+        generateNewSubtract()
+      }
+      else {
+        Alert.alert('Incorrect! Try again.')
+      }
+    }
+
+
+  }
+
+  function generateNewMultiply() {
+      const random = Math.floor(Math.random()*(12));
+      const random2 = Math.floor(Math.random()*(12));
+      setNumber1(random)
+      setNumber2(random2)
+      setUserAnswer('')
+  }
+
+  function generateNewSum() {
+      const random = Math.floor(Math.random()*(50));
+      const random2 = Math.floor(Math.random()*(50));
+      setNumber1(random)
+      setNumber2(random2)
+      setUserAnswer('')
+  }
+
+  function generateNewSubtract() {
+      const random = Math.floor(Math.random() * (80 - 20) + 20);
+      const random2 = Math.floor(Math.random()*(20));
+      setNumber1(random)
+      setNumber2(random2)
+      setUserAnswer('')
+  }
+
+  const[number1, setNumber1] = useState(0)
+  const[number2, setNumber2] = useState(0)
+
+  const [userAnswer, setUserAnswer] = useState(0)
+
+  return (
+
+  <View style={styles.container}>
+
+  <View style={styles.topMathScreen}>
+
+  <TouchableOpacity style = {styles.mathOptions} onPress={() => {setMode('x'); generateNewMultiply();}}>
+
+    <Text style = {{fontSize: 15, fontWeight: 'bold'}}>Multiplication</Text>
+
+  </TouchableOpacity>
+
+  <TouchableOpacity style = {styles.mathOptions} onPress={() => {setMode('+'); generateNewSum();}}>
+
+    <Text style = {{fontSize: 15, fontWeight: 'bold'}}>Addition</Text>
+
+  </TouchableOpacity>
+
+  <TouchableOpacity style = {styles.mathOptions} onPress={() => {setMode('-'); generateNewSubtract();}}>
+
+    <Text style = {{fontSize: 15, fontWeight: 'bold'}}>Subtraction</Text>
+
+  </TouchableOpacity>
+
+
+  </View> 
+
+  <View style = {styles.productScreen}>
+  
+  <Text  style = {{fontSize: 50, fontWeight: 'bold', paddingTop: 75}} >   {number1}</Text>
+  <Text  style = {{fontSize: 50, fontWeight: 'bold'}} >{mode} {number2}</Text>
+  <Text  style = {{fontSize: 50, fontWeight: 'bold'}} > ---------</Text>
+
+    <TextInput
+    style={{height: 40, width: '42%', fontSize: 20, borderWidth: 1.5, borderColor: 'black', paddingHorizontal: 3, textAlign: 'center', justifyContext: 'center'}}
+    placeholder="Enter answer"
+    onChangeText={userAnswer => setUserAnswer(userAnswer)}
+    value = {userAnswer}
+    />
+
+  <TouchableOpacity style = {styles.checkAnswerButton} onPress = {() => checkProduct()}> 
+  <Text style = {styles.checkAnswerButtonText}>Check Answer</Text> 
+  </TouchableOpacity>
+
+  </View>
+
+  </View> 
+
+  ) 
+  
+}
+
+//Method for the treatment news screen
+function TreatmentNews({ navigation }) {
+    const [news, setNews] = useState([
+    {title: 'Retired surgeon Jim Johnson kick-starts the BIKE trial with $250,000 contribution', link: 'https://www.buckinstitute.org/news/retired-surgeon-jim-johnson-kick-starts-the-bike-trial-with-250000-contribution/', key: '1'}, 
+    {title: 'Buck launches the first-ever online course on the biology of aging!', link: 'https://www.buckinstitute.org/news/buck-launches-the-first-ever-online-course-on-the-biology-of-aging/', key: '2'},
+    {title: 'NIH Renews Training Grant for $3.9 Million', link: 'https://www.buckinstitute.org/news/nih-renews-training-grant-for-3-9-million/', key: '3'},
+    {title: 'The US tech millionaire trying to reverse his age', link: 'https://www.youtube.com/watch?v=D77XPfUxaNs', key: '4'},
+    {title: 'New Potential Drug Target for Alzheimer’s Disease Discovered', link: 'https://scitechdaily.com/new-potential-drug-target-for-alzheimers-disease-discovered/', key: '5'},
+    {title: 'Alzheimer’s Breakthrough: Inhaling Menthol Improves Cognitive Ability', link: 'https://scitechdaily.com/alzheimers-breakthrough-inhaling-menthol-improves-cognitive-ability/ ', key: '6'},
+    {title: 'Start of new era for Alzheimer’s treatment', link: 'https://news.harvard.edu/gazette/story/2023/06/start-of-new-era-for-alzheimers-treatment/', key: '7'},
+    {title: 'Alzheimers treatments: Whats on the horizon?', link: 'https://www.mayoclinic.org/diseases-conditions/alzheimers-disease/in-depth/alzheimers-treatments/art-20047780', key: '8'},
+    {title: 'Recent breakthroughs in Alzheimer’s research provide hope for patients', link: 'https://www.aamc.org/news/recent-breakthroughs-alzheimer-s-research-provide-hope-patients', key: '9'},
+    {title: 'Alzheimer’s drug trial shown to slow cognitive decline in long fight against dementia', link: 'https://www.cnbc.com/2022/11/30/alzheimers-drug-lecanemab-slows-cognitive-decline-in-dementia-fight.html ', key: '10'},
+    {title: 'FDA Grants Accelerated Approval for Alzheimer’s Disease Treatment', link: 'https://www.fda.gov/news-events/press-announcements/fda-grants-accelerated-approval-alzheimers-disease-treatment', key: '11'},
+    {title: 'Three promising drugs for treating Alzheimers disease bring fresh hope', link: 'https://www.alzheimers.org.uk/blog/three-promising-drugs-for-treating-alzheimers-disease-bring-fresh-hope ', key: '12'},
+  ]);
+  return (
+
+    <View style={styles.container}> 
+
+    <FlatList 
+    keyExtractor={(item) => item.key}
+    data = {news}
+    renderItem = {({item}) => (
+
+      <View style={styles.newsBlock}>
+
+        <Text style = {styles.newsTitle}>{item.title}</Text>
+        <Text style = {styles.link} onPress={() => Linking.openURL(item.link)} >> {item.link}</Text>
+
+      </View> 
+
+    )}
+    />
+    </View>
+  );
+}
+
+const Stack = createStackNavigator();
+
+//Method to initialize screens
+function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator  initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Flashcards" component={CustomFlashcards} />
+        <Stack.Screen name="Practice" component={FlashcardsPractice} />
+        <Stack.Screen name="Treatment" component={TreatmentNews} />
+        <Stack.Screen name="MathGame" component={MathGame} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+//Style sheet to create fonts, design, etc.
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#ecf0f1',
+    padding: 8,
+  },
+  topHalf: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'seagreen',
+    borderRadius: 0,
+  },
+  title: {
+    fontSize : 50,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  titleText: {
+    fontSize: 15,
+    color: 'white'
+  },
+  middle: {
+    flex: 0.7,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'flex-end',
+    borderRadius: 0,
+    backgroundColor: 'seagreen',
+  },
+  separate: {
+    flex: 0.070,
+    borderRadius: 0,
+    backgroundColor: 'seagreen',
+  },
+  buttonText: {
+    fontSize: 21,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  bottom: {
+  flex: 0.7,
+  flexDirection: 'row',
+  justifyContent: 'space-evenly',
+  alignItems: 'flex-top',
+  borderRadius: 0,
+  backgroundColor: 'seagreen',
+  },
+  button: {
+    borderRadius: 30,
+    width: 340,
+    height: 160,
+    backgroundColor: 'whitesmoke',
+    borderColor: 'black',
+    borderWidth: '3',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  button2: {
+    borderRadius: 30,
+    width: 160,
+    height: 160,
+    backgroundColor: 'whitesmoke',
+    borderColor: 'black',
+    borderWidth: '3',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  newsBlock: {
+    flex: 0.5,
+    backgroundColor: 'azure',
+    borderColor: 'black',
+    borderWidth: '1.5',
+    marginBottom: 12,
+    padding: 5,
+  },
+  newsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  link: {
+    fontSize: 15,
+    fontWeight: 'light',
+    textDecorationLine: 'underline',
+  },
+  addButton: {
+    borderRadius: 35,
+    width: 350,
+    height: 50,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '3',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: 'black',
+  },
+  flashcardsTop: {
+    flex: 0.1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 2,
+    backgroundColor: 'azure',
+  },
+  flashcardsBottom: {
+    flex: 0.9,
+    justifyContent: 'center',
+    textAlign: 'center',
+    borderRadius: 3, 
+    backgroundColor: 'azure',
+    paddingTop: 15,
+    alignItems: 'center',
+  },
+  closeButton: {
+    borderRadius: 35,
+    width: 350,
+    height: 50,
+    backgroundColor: 'whitesmoke',
+    borderColor: 'black',
+    borderWidth: '3',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+    marginBottom: 10,
+  },
+  closeButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  popUp: {
+    flex: 0.6,
+    backgroundColor: 'powderblue',
+    borderColor: 'black',
+    borderWidth: '3',
+    padding: 7,
+    textAlign: 'center',
+    justifyContent: 'center',
+  },
+  flashcardBlock: {
+    width: 340,
+    height: 200,
+    backgroundColor: 'azure',
+    borderColor: 'black',
+    borderWidth: '2',
+    borderRadius: 5,
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  nameText: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginTop: 70,
+    color: 'white'
+  },
+  relationshipText: {
+    fontSize: 20,
+    fontWeight: 'light',
+    color: 'white',
+  },
+  cancelButton: {
+    borderRadius: 15,
+    width: 100,
+    height: 40,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2.5',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 250,
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  imageButton: {
+    borderRadius: 15,
+    width: 230,
+    height: 40,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2.5',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  imageButtonText: {
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  flashcardBlockLeft: {
+    width: '50%',
+    backgroundColor: 'seagreen',
+    justifyContent: 'center',
+    alignItems: 'center', 
+  },
+  flashcardBlockRight: {
+    width: '50%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  displayFlashcard: {
+    flex: 0.6,
+    backgroundColor: 'azure', 
+    borderWidth: '2.5',
+    alignItems: 'center',
+    borderRadius: 5,
+    justifyContent: 'center',
+  },
+  flipButton: {
+    marginTop: 0,
+    borderRadius: 7,
+    width: 200,
+    height: 70,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2.5',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 7,
+    marginRight: 7,
+  },
+  flipButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  flipButtonText2: {
+    fontSize: 25,
+    fontWeight: 'bold'
+  },
+  flipButtonText3: {
+    fontSize: 17,
+    fontWeight: 'lightbold'
+  },
+  flashcardPraticeScreen: {
+    borderRadius: 25,
+    width: 270,
+    height: 70,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2.5',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+    flashcardPraticeScreenText: {
+      fontSize: 20,
+      fontWeight: 'bold', 
+    },
+  flashcardBottomView: { 
+    flex: 0.15,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+    backgroundColor: 'azure',
+  },
+  saveText: {
+    fontSize: 15,
+    fontWeight: 'lightbold',
+    color: 'white',
+    },
+  save: {
+    borderRadius: 7,
+    borderColor: 'white',
+    borderWidth: '2',
+    width: 60,
+    height: 30,
+    justifyContent: 'center',
+    textAlign: 'center',
+    alignItems: 'center',
+    padding: 2,
+    marginTop: 32, 
+    marginRight: 92,
+  },
+  flashcardPracticeImage: {
+    flex: 0.9,
+    marginTop: 25,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    textAlign: 'center',
+    alignItems: 'center',
+  },
+  flashcardPracticeButtons: {
+    flex:0.3,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    alignItems: 'center',
+  },
+  nextCard: {
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 7,
+    width: 70,
+    height: 30,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2',
+    marginTop: 25,
+  },
+  nextCardText: {
+    fontSize: 15,
+    fontWeight: 'lightbold',
+},
+  exitButton: {
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 7,
+    width: 70,
+    height: 30,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2',
+    marginTop: 25,
+  },
+  exitButtonText: {
+    fontSize: 15,
+    fontWeight: 'lightbold',
+  },
+  checkAnswerButton: {
+    borderRadius: 6,
+    width: '50%',
+    height: 70,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '2',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 35,
+  },
+  checkAnswerButtonText: {
+    fontSize: 17,
+    fontWeight: 'lightbold',
+  },
+  productScreen: {
+    flex: 1,
+    backgroundColor: 'azure',
+    textAlign: 'center',
+    alignItems: 'center',
+    borderRadius: 2,
+  },
+  topMathScreen: {
+    flex: 0.23,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    borderRadius: 0,
+    backgroundColor: 'azure',
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  mathOptions: {
+    borderRadius: 9,
+    width: '30%',
+    height: 90,
+    backgroundColor: 'white',
+    borderColor: 'black',
+    borderWidth: '1.3',
+    textAlign: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 0,
+  }
+
+});
+
+export default App;
